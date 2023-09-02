@@ -3,6 +3,7 @@ import aiohttp
 import asyncio
 import random
 import logging
+import re
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -13,8 +14,6 @@ user_agents = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3",
 ]
 
-last_article_date = None
-old_link = None
 
 async def fetch_url(session, url):
     headers = {
@@ -24,7 +23,7 @@ async def fetch_url(session, url):
         return await response.text()
 
 async def check_and_print_new_articles():
-    global last_article_date
+
     global old_link
     
     async with aiohttp.ClientSession() as session:
@@ -40,12 +39,18 @@ async def check_and_print_new_articles():
 
             for article in articles:
                 link_element = article.find('a', class_='post-card-inline__title-link')
+                link_date = soup.find('time', class_='post-card-inline__date')
+                
                 if link_element and 'href' in link_element.attrs:
                     link = base_url + link_element['href']
-                    if old_link != link:
-                        old_link = link
+                    text = link_date.get_text(strip=True)
+                    match = re.search(r'(\d+) (\w+)', text)
+                    if match:
+                        number = int(match.group(1))
+                        unit = match.group(2)
+                    
+                    if ("hours" in unit and number <=6) or ("minutes" in unit):
                         print(link, flush=True)
-                    # You can perform further processing or scraping on the new article
                     return
 
         except aiohttp.ClientError as client_error:
